@@ -6,12 +6,35 @@ import (
 )
 
 type Config[S any, D any] struct {
-	fieldMappings map[string]*Opts
+	fieldMappings    map[string]*Opts
+	destReflectCache reflectCache
+	srcReflectCache  reflectCache
+}
+
+type reflectCache struct {
+	structType reflect.Type
+	numFields  int
+	fields     []reflect.StructField
+}
+
+func newReflectCache(obj any) reflectCache {
+	c := reflectCache{}
+	c.structType = reflect.TypeOf(obj)
+	c.numFields = c.structType.NumField()
+	c.fields = make([]reflect.StructField, c.numFields)
+	for i := 0; i < c.numFields; i++ {
+		c.fields[i] = c.structType.Field(i)
+	}
+
+	return c
+
 }
 
 func New[S any, D any]() Config[S, D] {
 	m := Config[S, D]{
-		fieldMappings: map[string]*Opts{},
+		fieldMappings:    map[string]*Opts{},
+		destReflectCache: newReflectCache(*new(D)),
+		srcReflectCache:  newReflectCache(*new(S)),
 	}
 	return m
 }
@@ -52,12 +75,6 @@ func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destT
 	return nil
 }
 
-func (m Config[S, D]) mapField(src S, srcField reflect.StructField, srcFieldValue reflect.Value, destField reflect.StructField, destFieldValue reflect.Value) error {
-
-	return m.mapAny(srcField.Type, srcFieldValue, destField.Type, destFieldValue)
-
-}
-
 func (m Config[S, D]) MapSlice(src []S) ([]D, error) {
 
 	var ret []D
@@ -75,17 +92,12 @@ func (m Config[S, D]) Map(src S) (D, error) {
 	// loop through fields with reflection
 	// check if field in our map
 	dest := new(D)
-	srcType := reflect.TypeOf(src)
-	srcNumField := srcType.NumField()
 	srcValue := reflect.ValueOf(&src)
-
-	destType := reflect.TypeOf(*dest)
-	destNumField := destType.NumField()
 	destValue := reflect.ValueOf(dest)
 
-	for j := 0; j < destNumField; j++ {
+	for j := 0; j < m.destReflectCache.numFields; j++ {
 		destFieldValue := destValue.Elem().Field(j)
-		destFieldType := destType.Field(j)
+		destFieldType := m.destReflectCache.fields[j]
 		found := false
 		fieldMapping, ok := m.fieldMappings[destFieldType.Name]
 		if ok {
@@ -95,12 +107,12 @@ func (m Config[S, D]) Map(src S) (D, error) {
 			}
 			continue
 		}
-		for i := 0; i < srcNumField; i++ {
+		for i := 0; i < m.srcReflectCache.numFields; i++ {
 			srcFieldValue := srcValue.Elem().Field(i)
-			srcFieldType := srcType.Field(i)
+			srcFieldType := m.srcReflectCache.fields[i]
 			if destFieldType.Name == srcFieldType.Name {
 				found = true
-				if err := m.mapField(src, srcFieldType, srcFieldValue, destFieldType, destFieldValue); err != nil {
+				if err := m.mapAny(srcFieldType.Type, srcFieldValue, destFieldType.Type, destFieldValue); err != nil {
 					return *dest, err
 				}
 				break
@@ -156,7 +168,6 @@ func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
 	if !found {
 		opts = &Opts{}
 	}
-	// run now early
 	option(opts)
 	m.fieldMappings[name] = opts
 	return m
