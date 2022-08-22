@@ -147,6 +147,30 @@ func TestSameStructPointer(t *testing.T) {
 	require.Equal(t, sub1{Bar: "bar"}, *res.Foo)
 }
 
+func TestCustomPrimitives(t *testing.T) {
+
+	type custom string
+	type from struct {
+		Foo    string
+		FooPtr *string
+		Foos   []string
+	}
+
+	type to struct {
+		Foo    custom
+		FooPtr *custom
+		Foos   []custom
+	}
+
+	c := New[from, to]()
+	res, err := c.Map(from{Foo: "custom", FooPtr: ref("ptr"), Foos: []string{"one"}})
+	require.NoError(t, err)
+	require.Equal(t, custom("custom"), res.Foo)
+	require.Equal(t, ref(custom("ptr")), res.FooPtr)
+	require.Equal(t, []custom{"one"}, res.Foos)
+
+}
+
 func ref[T any](v T) *T {
 	return &v
 }

@@ -62,24 +62,49 @@ func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destT
 		return nil
 
 	case reflect.Slice:
+		if srcType.Kind() != reflect.Slice {
+			return IncompatibleTypesErr{src: srcType, dest: destType}
+		}
+
+		if srcType.Elem().Kind() != destType.Elem().Kind() {
+			return IncompatibleTypesErr{src: srcType, dest: destType}
+		}
+		if srcValue.IsNil() {
+			return nil
+		}
 		if srcType.Elem() != destType.Elem() {
+			// need to cast
+			destValue.Set(reflect.MakeSlice(destType, srcValue.Len(), srcValue.Len()))
+			for i := 0; i < srcValue.Len(); i++ {
+				elemValue := srcValue.Index(i)
+				destValue.Index(i).Set(elemValue.Convert(destType.Elem()))
+			}
+			return nil
 		}
 		destValue.Set(srcValue)
 	case reflect.Pointer:
 		referencedDestType := destType.Elem()
 		referencedSourceType := srcType.Elem()
-		if referencedSourceType != referencedDestType {
+		if referencedSourceType.Kind() != referencedDestType.Kind() {
 			return IncompatibleTypesErr{src: srcType, dest: destType}
 		}
-		// are same type
+
 		if srcValue.IsNil() {
 			return nil
 		}
-		destValue.Set(srcValue)
+
+		if referencedSourceType == referencedDestType {
+			destValue.Set(srcValue)
+		}
+		destValue.Set(srcValue.Convert(destValue.Type()))
 	default:
-		if srcType != destType {
+		if srcType.Kind() != destType.Kind() {
 			return IncompatibleTypesErr{src: srcType, dest: destType}
 		}
+		if destValue.Type() != srcValue.Type() {
+			srcValue = srcValue.Convert(destValue.Type())
+		}
+
 		destValue.Set(srcValue)
 	}
 	return nil
