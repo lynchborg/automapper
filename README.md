@@ -18,6 +18,7 @@ type to struct {
 
 dest := to{}
 c := New[from, to]().
+	// Invalid field name results in panic directly
     ForField("Struct", MapField(func(src from) (any, error) {
         return New[sub1, sub2]().Map(src.Struct)
     })).
