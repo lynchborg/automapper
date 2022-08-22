@@ -1,7 +1,9 @@
 # Automapper
 
 Easily map from a source to a destination struct.
+
 Can automatically map fields that are the same name and type.
+
 Allows for custom override for fields that have differing types or that don't exist on the source struct.
 
 ```golang
