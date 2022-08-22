@@ -43,11 +43,7 @@ c := New[from, to]().
     })).
     ForField("Missing", IgnoreField()).
     ForField("WrongTypeSlice", MapField(func(src from) (any, error) {
-        var ret []string
-        for _, item := range src.WrongTypeSlice {
-            ret = append(ret, strconv.Itoa(item))
-        }
-        return ret, nil
+        return MapSlice(src.WrongTypeSlice, func(i int) string { return strconv.Itoa(i)})
     }))
 
 src := from{
