@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestM(t *testing.T) {
+func TestMainFeatures(t *testing.T) {
 	type sub1 struct{ Bar string }
 	type sub2 struct{ Bar string }
 
@@ -46,11 +46,9 @@ func TestM(t *testing.T) {
 		})).
 		ForField("Missing", IgnoreField()).
 		ForField("WrongTypeSlice", MapField(func(src from) (any, error) {
-			var ret []string
-			for _, item := range src.WrongTypeSlice {
-				ret = append(ret, strconv.Itoa(item))
-			}
-			return ret, nil
+			return MapSlice(src.WrongTypeSlice, func(input int) string {
+				return strconv.Itoa(input)
+			}), nil
 		}))
 
 	src := from{
@@ -68,4 +66,87 @@ func TestM(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(dest)
 
+}
+
+func TestMissing(t *testing.T) {
+
+	type from struct {
+		Foo string
+	}
+
+	type to struct {
+		Missing bool
+	}
+
+	c := New[from, to]()
+	_, err := c.Map(from{Foo: "foo"})
+	require.Error(t, err)
+	require.Equal(t, "field 'Missing' not found in source type 'automapper.from'", err.Error())
+}
+
+func TestPrimitivePointer(t *testing.T) {
+
+	type from struct {
+		Foo *int
+	}
+
+	type to struct {
+		Foo *int
+	}
+
+	c := New[from, to]()
+	res, err := c.Map(from{Foo: ref(99)})
+	require.NoError(t, err)
+	require.NotNil(t, res.Foo)
+	require.Equal(t, 99, *res.Foo)
+}
+
+func TestDifferentStructPointer(t *testing.T) {
+
+	type sub1 struct{ Bar string }
+	type sub2 struct{ Bar string }
+
+	type from struct {
+		Foo *sub1
+	}
+
+	type to struct {
+		Foo *sub2
+	}
+
+	c := New[from, to]().
+		ForField("Foo", MapField(func(s from) (any, error) {
+			if s.Foo == nil {
+				return nil, nil
+
+			}
+			return &sub2{Bar: s.Foo.Bar}, nil
+		}))
+	res, err := c.Map(from{Foo: &sub1{Bar: "bar"}})
+	require.NoError(t, err)
+	require.NotNil(t, res.Foo)
+	require.Equal(t, sub2{Bar: "bar"}, *res.Foo)
+}
+
+func TestSameStructPointer(t *testing.T) {
+
+	type sub1 struct{ Bar string }
+
+	type from struct {
+		Foo *sub1
+	}
+
+	type to struct {
+		Foo *sub1
+	}
+
+	c := New[from, to]()
+	res, err := c.Map(from{Foo: &sub1{Bar: "bar"}})
+	require.NoError(t, err)
+	require.NotNil(t, res.Foo)
+	require.Equal(t, sub1{Bar: "bar"}, *res.Foo)
+}
+
+func ref[T any](v T) *T {
+	return &v
 }

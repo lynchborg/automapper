@@ -55,17 +55,27 @@ func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destT
 		if srcType.Kind() != reflect.Struct {
 			return IncompatibleTypesErr{src: srcType, dest: destType}
 		}
-		if srcType == destType {
-			destValue.Set(srcValue)
-			return nil
-		}
-
-	case reflect.Slice:
-		if srcType.Elem() != destType.Elem() {
+		if srcType != destType {
 			return IncompatibleTypesErr{src: srcType, dest: destType}
 		}
 		destValue.Set(srcValue)
+		return nil
+
+	case reflect.Slice:
+		if srcType.Elem() != destType.Elem() {
+		}
+		destValue.Set(srcValue)
 	case reflect.Pointer:
+		referencedDestType := destType.Elem()
+		referencedSourceType := srcType.Elem()
+		if referencedSourceType != referencedDestType {
+			return IncompatibleTypesErr{src: srcType, dest: destType}
+		}
+		// are same type
+		if srcValue.IsNil() {
+			return nil
+		}
+		destValue.Set(srcValue)
 	default:
 		if srcType != destType {
 			return IncompatibleTypesErr{src: srcType, dest: destType}
@@ -171,4 +181,11 @@ func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
 	option(opts)
 	m.fieldMappings[name] = opts
 	return m
+}
+
+func MapSlice[A, B any](slice []A, mapper func(input A) B) (res []B) {
+	for _, item := range slice {
+		res = append(res, mapper(item))
+	}
+	return
 }
