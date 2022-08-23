@@ -6,12 +6,24 @@ import (
 )
 
 type Config[S any, D any] struct {
-	fieldMappings map[string]*Opts
+	fieldMappings map[string]Opts
+	destType      reflect.Type
+	destFields    int
+	srcType       reflect.Type
+	srcFields     int
 }
 
 func New[S any, D any]() Config[S, D] {
+	dest := new(D)
+	src := new(S)
+	destType := reflect.TypeOf(*dest)
+	srcType := reflect.TypeOf(*src)
 	m := Config[S, D]{
-		fieldMappings: map[string]*Opts{},
+		fieldMappings: map[string]Opts{},
+		destType:      destType,
+		destFields:    destType.NumField(),
+		srcType:       srcType,
+		srcFields:     srcType.NumField(),
 	}
 	return m
 }
@@ -104,11 +116,11 @@ func (m Config[S, D]) Map(src S) (D, error) {
 	dest := new(D)
 
 	srcValue := reflect.ValueOf(&src)
-	srcType := reflect.TypeOf(src)
+	srcType := m.srcType
 	destValue := reflect.ValueOf(dest)
-	destType := reflect.TypeOf(*dest)
+	destType := m.destType
 
-	for j := 0; j < destValue.Elem().NumField(); j++ {
+	for j := 0; j < m.destFields; j++ {
 		destFieldType := destType.Field(j)
 		if !destFieldType.IsExported() {
 			continue
@@ -124,7 +136,7 @@ func (m Config[S, D]) Map(src S) (D, error) {
 			}
 			continue
 		}
-		for i := 0; i < srcValue.Elem().NumField(); i++ {
+		for i := 0; i < m.srcFields; i++ {
 			srcFieldValue := srcValue.Elem().Field(i)
 			srcFieldType := srcType.Field(i)
 			if destFieldType.Name == srcFieldType.Name {
@@ -177,16 +189,15 @@ func MapField[S any](mapFunc func(S) (any, error)) func(o *Opts) {
 	}
 }
 func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
-	dest := new(D)
-	_, found := reflect.TypeOf(*dest).FieldByName(name)
+	_, found := m.destType.FieldByName(name)
 	if !found {
 		panic(fmt.Errorf("destination has no field named %s", name))
 	}
 	opts, found := m.fieldMappings[name]
 	if !found {
-		opts = &Opts{}
+		opts = Opts{}
 	}
-	option(opts)
+	option(&opts)
 	m.fieldMappings[name] = opts
 	return m
 }
