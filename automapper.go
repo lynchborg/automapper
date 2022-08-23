@@ -6,35 +6,12 @@ import (
 )
 
 type Config[S any, D any] struct {
-	fieldMappings    map[string]*Opts
-	destReflectCache reflectCache
-	srcReflectCache  reflectCache
+	fieldMappings map[string]*Opts
 }
 
-type reflectCache struct {
-	structType reflect.Type
-	numFields  int
-	fields     []reflect.StructField
-}
-
-func newReflectCache(obj any) reflectCache {
-	c := reflectCache{}
-	c.structType = reflect.TypeOf(obj)
-	c.numFields = c.structType.NumField()
-	c.fields = make([]reflect.StructField, c.numFields)
-	for i := 0; i < c.numFields; i++ {
-		c.fields[i] = c.structType.Field(i)
-	}
-
-	return c
-
-}
-
-func New[S any, D any]() Config[S, D] {
-	m := Config[S, D]{
-		fieldMappings:    map[string]*Opts{},
-		destReflectCache: newReflectCache(*new(D)),
-		srcReflectCache:  newReflectCache(*new(S)),
+func New[S any, D any]() *Config[S, D] {
+	m := &Config[S, D]{
+		fieldMappings: map[string]*Opts{},
 	}
 	return m
 }
@@ -48,7 +25,7 @@ func (i IncompatibleTypesErr) Error() string {
 	return fmt.Sprintf("destination type is %s, source is %s", i.dest, i.src)
 }
 
-func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destType reflect.Type, destValue reflect.Value) error {
+func (m *Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destType reflect.Type, destValue reflect.Value) error {
 
 	switch destType.Kind() {
 	case reflect.Struct:
@@ -110,7 +87,7 @@ func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destT
 	return nil
 }
 
-func (m Config[S, D]) MapSlice(src []S) ([]D, error) {
+func (m *Config[S, D]) MapSlice(src []S) ([]D, error) {
 
 	var ret []D
 	for _, item := range src {
@@ -123,16 +100,18 @@ func (m Config[S, D]) MapSlice(src []S) ([]D, error) {
 	return ret, nil
 }
 
-func (m Config[S, D]) Map(src S) (D, error) {
+func (m *Config[S, D]) Map(src S) (D, error) {
 	// loop through fields with reflection
 	// check if field in our map
 	dest := new(D)
 	srcValue := reflect.ValueOf(&src)
+	srcType := reflect.TypeOf(src)
 	destValue := reflect.ValueOf(dest)
+	destType := reflect.TypeOf(*dest)
 
-	for j := 0; j < m.destReflectCache.numFields; j++ {
+	for j := 0; j < destValue.Elem().NumField(); j++ {
 		destFieldValue := destValue.Elem().Field(j)
-		destFieldType := m.destReflectCache.fields[j]
+		destFieldType := destType.Field(j)
 		found := false
 		fieldMapping, ok := m.fieldMappings[destFieldType.Name]
 		if ok {
@@ -142,9 +121,9 @@ func (m Config[S, D]) Map(src S) (D, error) {
 			}
 			continue
 		}
-		for i := 0; i < m.srcReflectCache.numFields; i++ {
+		for i := 0; i < srcValue.Elem().NumField(); i++ {
 			srcFieldValue := srcValue.Elem().Field(i)
-			srcFieldType := m.srcReflectCache.fields[i]
+			srcFieldType := srcType.Field(i)
 			if destFieldType.Name == srcFieldType.Name {
 				found = true
 				if err := m.mapAny(srcFieldType.Type, srcFieldValue, destFieldType.Type, destFieldValue); err != nil {
@@ -155,7 +134,6 @@ func (m Config[S, D]) Map(src S) (D, error) {
 		}
 		if !found {
 			return *dest, fmt.Errorf("field '%s' not found in source type '%s'", destFieldType.Name, reflect.TypeOf(src))
-
 		}
 	}
 
@@ -193,7 +171,7 @@ func MapField[S any](mapFunc func(S) (any, error)) func(o *Opts) {
 		}
 	}
 }
-func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
+func (m *Config[S, D]) ForField(name string, option func(o *Opts)) *Config[S, D] {
 	dest := new(D)
 	_, found := reflect.TypeOf(*dest).FieldByName(name)
 	if !found {
