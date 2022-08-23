@@ -9,8 +9,8 @@ type Config[S any, D any] struct {
 	fieldMappings map[string]*Opts
 }
 
-func New[S any, D any]() *Config[S, D] {
-	m := &Config[S, D]{
+func New[S any, D any]() Config[S, D] {
+	m := Config[S, D]{
 		fieldMappings: map[string]*Opts{},
 	}
 	return m
@@ -25,7 +25,7 @@ func (i IncompatibleTypesErr) Error() string {
 	return fmt.Sprintf("destination type is %s, source is %s", i.dest, i.src)
 }
 
-func (m *Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destType reflect.Type, destValue reflect.Value) error {
+func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destType reflect.Type, destValue reflect.Value) error {
 
 	switch destType.Kind() {
 	case reflect.Struct:
@@ -87,7 +87,7 @@ func (m *Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, dest
 	return nil
 }
 
-func (m *Config[S, D]) MapSlice(src []S) ([]D, error) {
+func (m Config[S, D]) MapSlice(src []S) ([]D, error) {
 
 	var ret []D
 	for _, item := range src {
@@ -100,18 +100,21 @@ func (m *Config[S, D]) MapSlice(src []S) ([]D, error) {
 	return ret, nil
 }
 
-func (m *Config[S, D]) Map(src S) (D, error) {
-	// loop through fields with reflection
-	// check if field in our map
+func (m Config[S, D]) Map(src S) (D, error) {
 	dest := new(D)
+
 	srcValue := reflect.ValueOf(&src)
 	srcType := reflect.TypeOf(src)
 	destValue := reflect.ValueOf(dest)
 	destType := reflect.TypeOf(*dest)
 
 	for j := 0; j < destValue.Elem().NumField(); j++ {
-		destFieldValue := destValue.Elem().Field(j)
 		destFieldType := destType.Field(j)
+		if !destFieldType.IsExported() {
+			continue
+		}
+
+		destFieldValue := destValue.Elem().Field(j)
 		found := false
 		fieldMapping, ok := m.fieldMappings[destFieldType.Name]
 		if ok {
@@ -149,13 +152,15 @@ func (o Opts) apply(src any, destValue reflect.Value) error {
 	if o.ignore {
 		return nil
 	}
-	if o.mapFunc != nil {
-		v, err := o.mapFunc(src)
-		if err != nil {
-			return err
-		}
-		destValue.Set(reflect.ValueOf(v))
+	if o.mapFunc == nil {
+		return nil
 	}
+
+	v, err := o.mapFunc(src)
+	if err != nil {
+		return err
+	}
+	destValue.Set(reflect.ValueOf(v))
 	return nil
 }
 func IgnoreField() func(o *Opts) {
@@ -171,7 +176,7 @@ func MapField[S any](mapFunc func(S) (any, error)) func(o *Opts) {
 		}
 	}
 }
-func (m *Config[S, D]) ForField(name string, option func(o *Opts)) *Config[S, D] {
+func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
 	dest := new(D)
 	_, found := reflect.TypeOf(*dest).FieldByName(name)
 	if !found {

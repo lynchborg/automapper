@@ -98,12 +98,13 @@ func BenchmarkNormalStruct(b *testing.B) {
 		Missing        bool
 	}
 
+	subConfig := New[sub1, sub2]()
 	c := New[from, to]().
 		ForField("Struct", MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().Map(src.Struct)
+			return subConfig.Map(src.Struct)
 		})).
 		ForField("StructSlice", MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().MapSlice(src.StructSlice)
+			return subConfig.MapSlice(src.StructSlice)
 		})).
 		ForField("Missing", IgnoreField()).
 		ForField("WrongTypeSlice", MapField(func(src from) (any, error) {
