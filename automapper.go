@@ -13,6 +13,7 @@ type Config[S any, D any] struct {
 	srcFields     int
 }
 
+// New creates a new config for mapping from S (source) to D (destination)
 func New[S any, D any]() Config[S, D] {
 	dest := new(D)
 	src := new(S)
@@ -99,6 +100,7 @@ func (m Config[S, D]) mapAny(srcType reflect.Type, srcValue reflect.Value, destT
 	return nil
 }
 
+// MapSlice maps slices...
 func (m Config[S, D]) MapSlice(src []S) ([]D, error) {
 
 	var ret []D
@@ -112,6 +114,7 @@ func (m Config[S, D]) MapSlice(src []S) ([]D, error) {
 	return ret, nil
 }
 
+// Map from S (source type) to D (destination type)
 func (m Config[S, D]) Map(src S) (D, error) {
 	dest := new(D)
 
@@ -175,12 +178,15 @@ func (o Opts) apply(src any, destValue reflect.Value) error {
 	destValue.Set(reflect.ValueOf(v))
 	return nil
 }
+
+// IgnoreField asks the Config to avoid mapping this field
 func IgnoreField() func(o *Opts) {
 	return func(o *Opts) {
 		o.ignore = true
 	}
 }
 
+// MapField asks the config to map with the mapFunc
 func MapField[S any](mapFunc func(S) (any, error)) func(o *Opts) {
 	return func(o *Opts) {
 		o.mapFunc = func(s any) (any, error) {
@@ -219,6 +225,8 @@ func findStructField(structValue reflect.Value, fieldValue reflect.Value) *refle
 	}
 	return nil
 }
+
+// ForFieldName registers mapping options by the struct field's name
 func (m Config[S, D]) ForFieldName(name string, option func(o *Opts)) Config[S, D] {
 	_, found := m.destType.FieldByName(name)
 	if !found {
@@ -233,6 +241,8 @@ func (m Config[S, D]) ForFieldName(name string, option func(o *Opts)) Config[S, 
 	return m
 }
 
+// ForField registers mapping options by a fieldFunc. The fieldFunc MUST return a pointer to a struct field of *D.
+// ForField(func(d *Foo) any { return &d.Bar }, ...)
 func (m Config[S, D]) ForField(fieldFunc func(d *D) any, option func(o *Opts)) Config[S, D] {
 	d := new(D)
 	field := fieldFunc(d)
@@ -263,6 +273,7 @@ func (m Config[S, D]) ForField(fieldFunc func(d *D) any, option func(o *Opts)) C
 	return m.ForFieldName(structField.Name, option)
 }
 
+// MapSlice generic helper to map []A to []B
 func MapSlice[A, B any](slice []A, mapper func(input A) B) (res []B) {
 	for _, item := range slice {
 		res = append(res, mapper(item))
