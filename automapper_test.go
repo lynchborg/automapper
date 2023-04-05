@@ -37,19 +37,6 @@ func TestMainFeatures(t *testing.T) {
 	}
 
 	dest := to{}
-	c := New[from, to]().
-		ForField("Struct", MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().Map(src.Struct)
-		})).
-		ForField("StructSlice", MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().MapSlice(src.StructSlice)
-		})).
-		ForField("Missing", IgnoreField()).
-		ForField("WrongTypeSlice", MapField(func(src from) (any, error) {
-			return MapSlice(src.WrongTypeSlice, func(input int) string {
-				return strconv.Itoa(input)
-			}), nil
-		}))
 
 	src := from{
 		String:      "String",
@@ -62,7 +49,46 @@ func TestMainFeatures(t *testing.T) {
 		},
 		WrongTypeSlice: []int{999, 998},
 	}
+
+	c := New[from, to]().
+		ForFieldName("Struct", MapField(func(src from) (any, error) {
+			return New[sub1, sub2]().Map(src.Struct)
+		})).
+		ForFieldName("StructSlice", MapField(func(src from) (any, error) {
+			return New[sub1, sub2]().MapSlice(src.StructSlice)
+		})).
+		ForFieldName("Missing", IgnoreField()).
+		ForFieldName("WrongTypeSlice", MapField(func(src from) (any, error) {
+			return MapSlice(src.WrongTypeSlice, func(input int) string {
+				return strconv.Itoa(input)
+			}), nil
+		}))
 	dest, err := c.Map(src)
+	require.NoError(t, err)
+
+	c = New[from, to]().
+		ForField(func(dest *to) any {
+			return &dest.Struct
+		}, MapField(func(src from) (any, error) {
+			return New[sub1, sub2]().Map(src.Struct)
+		})).
+		ForField(func(dest *to) any {
+			return &dest.StructSlice
+		}, MapField(func(src from) (any, error) {
+			return New[sub1, sub2]().MapSlice(src.StructSlice)
+		})).
+		ForField(func(dest *to) any {
+			return &dest.Missing
+		}, IgnoreField()).
+		ForField(func(dest *to) any {
+			return &dest.WrongTypeSlice
+		}, MapField(func(src from) (any, error) {
+			return MapSlice(src.WrongTypeSlice, func(input int) string {
+				return strconv.Itoa(input)
+			}), nil
+		}))
+
+	dest, err = c.Map(src)
 	require.NoError(t, err)
 	t.Log(dest)
 
@@ -100,14 +126,14 @@ func BenchmarkNormalStruct(b *testing.B) {
 
 	subConfig := New[sub1, sub2]()
 	c := New[from, to]().
-		ForField("Struct", MapField(func(src from) (any, error) {
+		ForFieldName("Struct", MapField(func(src from) (any, error) {
 			return subConfig.Map(src.Struct)
 		})).
-		ForField("StructSlice", MapField(func(src from) (any, error) {
+		ForFieldName("StructSlice", MapField(func(src from) (any, error) {
 			return subConfig.MapSlice(src.StructSlice)
 		})).
-		ForField("Missing", IgnoreField()).
-		ForField("WrongTypeSlice", MapField(func(src from) (any, error) {
+		ForFieldName("Missing", IgnoreField()).
+		ForFieldName("WrongTypeSlice", MapField(func(src from) (any, error) {
 			return MapSlice(src.WrongTypeSlice, func(input int) string {
 				return strconv.Itoa(input)
 			}), nil
@@ -203,7 +229,7 @@ func TestDifferentStructPointer(t *testing.T) {
 	}
 
 	c := New[from, to]().
-		ForField("Foo", MapField(func(s from) (any, error) {
+		ForFieldName("Foo", MapField(func(s from) (any, error) {
 			if s.Foo == nil {
 				return nil, nil
 

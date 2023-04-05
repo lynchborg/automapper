@@ -1,4 +1,4 @@
-module github.com/byrnedo/automapper
+module github.com/lynchborg/automapper
 
 go 1.18
 

@@ -188,7 +188,38 @@ func MapField[S any](mapFunc func(S) (any, error)) func(o *Opts) {
 		}
 	}
 }
-func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
+
+// findStructField looks for a field in the given struct.
+// The field being looked for should be a pointer to the actual struct field.
+// If found, the field info will be returned. Otherwise, nil will be returned.
+// From https://github.com/go-ozzo/ozzo-validation
+func findStructField(structValue reflect.Value, fieldValue reflect.Value) *reflect.StructField {
+	ptr := fieldValue.Pointer()
+	for i := structValue.NumField() - 1; i >= 0; i-- {
+		sf := structValue.Type().Field(i)
+		if ptr == structValue.Field(i).UnsafeAddr() {
+			// do additional type comparison because it's possible that the address of
+			// an embedded struct is the same as the first field of the embedded struct
+			if sf.Type == fieldValue.Elem().Type() {
+				return &sf
+			}
+		}
+		if sf.Anonymous {
+			// delve into anonymous struct to look for the field
+			fi := structValue.Field(i)
+			if sf.Type.Kind() == reflect.Ptr {
+				fi = fi.Elem()
+			}
+			if fi.Kind() == reflect.Struct {
+				if f := findStructField(fi, fieldValue); f != nil {
+					return f
+				}
+			}
+		}
+	}
+	return nil
+}
+func (m Config[S, D]) ForFieldName(name string, option func(o *Opts)) Config[S, D] {
 	_, found := m.destType.FieldByName(name)
 	if !found {
 		panic(fmt.Errorf("destination has no field named %s", name))
@@ -200,6 +231,36 @@ func (m Config[S, D]) ForField(name string, option func(o *Opts)) Config[S, D] {
 	option(&opts)
 	m.fieldMappings[name] = opts
 	return m
+}
+
+func (m Config[S, D]) ForField(fieldFunc func(d *D) any, option func(o *Opts)) Config[S, D] {
+	d := new(D)
+	field := fieldFunc(d)
+	structValue := reflect.ValueOf(d)
+	fieldValue := reflect.ValueOf(field)
+
+	if structValue.IsNil() {
+		// treat a nil struct pointer as valid
+		panic("value can not be nil")
+	}
+
+	if structValue.Kind() != reflect.Ptr || !structValue.IsNil() && structValue.Elem().Kind() != reflect.Struct {
+		// must be a pointer to a struct
+		panic("destination was not a struct")
+	}
+
+	structValue = structValue.Elem()
+
+	if fieldValue.Kind() != reflect.Ptr {
+		panic("fieldFunc return value must be pointer to struct field")
+	}
+
+	structField := findStructField(structValue, fieldValue)
+	if structField == nil {
+		panic(fmt.Errorf("struct field could not be identified from fieldFunc"))
+	}
+
+	return m.ForFieldName(structField.Name, option)
 }
 
 func MapSlice[A, B any](slice []A, mapper func(input A) B) (res []B) {
