@@ -125,15 +125,24 @@ func BenchmarkNormalStruct(b *testing.B) {
 	}
 
 	subConfig := New[sub1, sub2]()
+
 	c := New[from, to]().
-		ForFieldName("Struct", MapField(func(src from) (any, error) {
+		ForField(func(dest *to) any {
+			return &dest.Struct
+		}, MapField(func(src from) (any, error) {
 			return subConfig.Map(src.Struct)
 		})).
-		ForFieldName("StructSlice", MapField(func(src from) (any, error) {
+		ForField(func(dest *to) any {
+			return &dest.StructSlice
+		}, MapField(func(src from) (any, error) {
 			return subConfig.MapSlice(src.StructSlice)
 		})).
-		ForFieldName("Missing", IgnoreField()).
-		ForFieldName("WrongTypeSlice", MapField(func(src from) (any, error) {
+		ForField(func(dest *to) any {
+			return &dest.Missing
+		}, IgnoreField()).
+		ForField(func(dest *to) any {
+			return &dest.WrongTypeSlice
+		}, MapField(func(src from) (any, error) {
 			return MapSlice(src.WrongTypeSlice, func(input int) string {
 				return strconv.Itoa(input)
 			}), nil
