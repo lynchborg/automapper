@@ -1,6 +1,10 @@
 # Automapper 🤖🗺️
 
-Easily map from a source to a destination struct. Why? Since, while writing mappings by hand is great and all, it's very tedious if the types are largely the same but with some small differences. Automapper will (automatically 🤖) map fields that are the same name and type, just leaving you to define what you want to do with the exceptions.
+Easily map from a source to a destination struct. 
+
+Why though? Well, while writing mappings by hand is great and all, it's very tedious if the types are largely the same but with only some small differences. 
+
+Automapper will (automatically 🤖) map fields that are the same name and type, just leaving you to define what you want to do with the exceptions.
 
 ```golang
 package main
