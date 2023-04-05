@@ -1,10 +1,6 @@
 # Automapper
 
-Easily map from a source to a destination struct.
-
-Can automatically map fields that are the same name and type.
-
-Allows for custom override for fields that have differing types or that don't exist on the source struct.
+Easily map from a source to a destination struct. Why? Since writing mappings by hand is great and all, it's very tedious if the types are largely the same but with some small differences. Automapper will (automatically :p) map fields that are the same name and type, just leaving you to define what you want to do with the exceptions.
 
 ```golang
 package main
