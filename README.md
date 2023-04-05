@@ -10,6 +10,9 @@ Allows for custom override for fields that have differing types or that don't ex
 package main
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/lynchborg/automapper"
 )
 
@@ -41,44 +44,45 @@ type to struct {
 	Missing        bool
 }
 
-var mapper automapper.Config
+var c automapper.Config[from, to]
 
 func init() {
+	subMapper := automapper.New[sub1, sub2]()
 	// first set up the mapper, advised to do this at startup once since it's costly with reflection
 	// via string names
 	c = automapper.New[from, to]().
-		ForFieldName("Struct", MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().Map(src.Struct)
+		ForFieldName("Struct", automapper.MapField(func(src from) (any, error) {
+			return subMapper.Map(src.Struct)
 		})).
-		ForFieldName("StructSlice", MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().MapSlice(src.StructSlice)
+		ForFieldName("StructSlice", automapper.MapField(func(src from) (any, error) {
+			return subMapper.MapSlice(src.StructSlice)
 		})).
-		ForFieldName("Missing", IgnoreField()).
-		ForFieldName("WrongTypeSlice", MapField(func(src from) (any, error) {
-			return MapSlice(src.WrongTypeSlice, func(input int) string {
+		ForFieldName("Missing", automapper.IgnoreField()).
+		ForFieldName("WrongTypeSlice", automapper.MapField(func(src from) (any, error) {
+			return automapper.MapSlice(src.WrongTypeSlice, func(input int) string {
 				return strconv.Itoa(input)
 			}), nil
 		}))
 
 	// or by func
-	c = New[from, to]().
+	c = automapper.New[from, to]().
 		ForField(func(dest *to) any {
 			return &dest.Struct
-		}, MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().Map(src.Struct)
+		}, automapper.MapField(func(src from) (any, error) {
+			return subMapper.Map(src.Struct)
 		})).
 		ForField(func(dest *to) any {
 			return &dest.StructSlice
-		}, MapField(func(src from) (any, error) {
-			return New[sub1, sub2]().MapSlice(src.StructSlice)
+		}, automapper.MapField(func(src from) (any, error) {
+			return subMapper.MapSlice(src.StructSlice)
 		})).
 		ForField(func(dest *to) any {
 			return &dest.Missing
-		}, IgnoreField()).
+		}, automapper.IgnoreField()).
 		ForField(func(dest *to) any {
 			return &dest.WrongTypeSlice
-		}, MapField(func(src from) (any, error) {
-			return MapSlice(src.WrongTypeSlice, func(input int) string {
+		}, automapper.MapField(func(src from) (any, error) {
+			return automapper.MapSlice(src.WrongTypeSlice, func(input int) string {
 				return strconv.Itoa(input)
 			}), nil
 		}))
@@ -86,7 +90,6 @@ func init() {
 }
 
 func main() {
-
 
 	src := from{
 		String:      "String",
