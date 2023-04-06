@@ -19,6 +19,17 @@ func New[S any, D any]() Config[S, D] {
 	src := new(S)
 	destType := reflect.TypeOf(*dest)
 	srcType := reflect.TypeOf(*src)
+
+	if destType.Kind() != reflect.Struct || destType.Kind() == reflect.Ptr && destType.Elem().Kind() != reflect.Struct {
+		// must be a pointer to a struct
+		panic("destination type D was not a struct or pointer to one")
+	}
+
+	if srcType.Kind() != reflect.Struct || srcType.Kind() == reflect.Ptr && srcType.Elem().Kind() != reflect.Struct {
+		// must be a pointer to a struct
+		panic("source type T was not a struct or pointer to one")
+	}
+
 	m := Config[S, D]{
 		fieldMappings: map[string]Opts{},
 		destType:      destType,
@@ -248,16 +259,6 @@ func (m Config[S, D]) ForField(fieldFunc func(d *D) any, option func(o *Opts)) C
 	field := fieldFunc(d)
 	structValue := reflect.ValueOf(d)
 	fieldValue := reflect.ValueOf(field)
-
-	if structValue.IsNil() {
-		// treat a nil struct pointer as valid
-		panic("value can not be nil")
-	}
-
-	if structValue.Kind() != reflect.Ptr || !structValue.IsNil() && structValue.Elem().Kind() != reflect.Struct {
-		// must be a pointer to a struct
-		panic("destination was not a struct")
-	}
 
 	structValue = structValue.Elem()
 

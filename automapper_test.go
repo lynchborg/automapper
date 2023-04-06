@@ -191,7 +191,7 @@ func BenchmarkNormalStruct(b *testing.B) {
 
 }
 
-func TestMissing(t *testing.T) {
+func TestShouldRespectMissing(t *testing.T) {
 
 	type from struct {
 		Foo string
@@ -224,7 +224,7 @@ func TestPrimitivePointer(t *testing.T) {
 	require.Equal(t, 99, *res.Foo)
 }
 
-func TestDifferentStructPointer(t *testing.T) {
+func TestShouldMapDifferentStructPointer(t *testing.T) {
 
 	type sub1 struct{ Bar string }
 	type sub2 struct{ Bar string }
@@ -251,7 +251,7 @@ func TestDifferentStructPointer(t *testing.T) {
 	require.Equal(t, sub2{Bar: "bar"}, *res.Foo)
 }
 
-func TestSameStructPointer(t *testing.T) {
+func TestShouldMapSameStructPointer(t *testing.T) {
 
 	type sub1 struct{ Bar string }
 
@@ -270,7 +270,7 @@ func TestSameStructPointer(t *testing.T) {
 	require.Equal(t, sub1{Bar: "bar"}, *res.Foo)
 }
 
-func TestCustomPrimitives(t *testing.T) {
+func TestShouldMapCustomPrimitives(t *testing.T) {
 
 	type custom string
 	type from struct {
@@ -302,6 +302,7 @@ func TestShouldFailIfNotStruct(t *testing.T) {
 
 	defer func() {
 		if err := recover(); err != nil {
+			t.Log(err)
 			return
 		}
 		t.Fatal("should have panicked")
