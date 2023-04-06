@@ -297,3 +297,14 @@ func TestCustomPrimitives(t *testing.T) {
 func ref[T any](v T) *T {
 	return &v
 }
+
+func TestShouldFailIfNotStruct(t *testing.T) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			return
+		}
+		t.Fatal("should have panicked")
+	}()
+	_ = New[int, bool]()
+}
