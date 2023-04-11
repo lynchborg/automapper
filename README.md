@@ -1,6 +1,7 @@
 # Automapper 🤖🗺️
 [![Go Reference](https://pkg.go.dev/badge/github.com/lynchborg/automapper.svg)](https://pkg.go.dev/github.com/lynchborg/automapper)
 [![Go Coverage](https://github.com/lynchborg/automapper/wiki/coverage.svg)](https://raw.githack.com/wiki/lynchborg/automapper/coverage.html)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lynchborg/automapper)](https://goreportcard.com/report/github.com/lynchborg/automapper)
 
 Easily map from a source to a destination struct. 
 
